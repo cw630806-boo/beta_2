@@ -1,507 +1,239 @@
-import { auth, db } from './firebase-init.js';
-import {
-  signInWithEmailAndPassword, onAuthStateChanged, signOut
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc,
-  query, orderBy, serverTimestamp, where
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const appModal = document.getElementById('appModal');
-const appModalTitle = document.getElementById('appModalTitle');
-const appModalMsg = document.getElementById('appModalMsg');
-const appModalFields = document.getElementById('appModalFields');
-const appModalCancel = document.getElementById('appModalCancel');
-const appModalConfirm = document.getElementById('appModalConfirm');
-
-function closeAppModal() {
-  appModal.classList.remove('is-open');
-  appModalFields.innerHTML = '';
-  appModalMsg.style.display = 'none';
-}
-
-function appPrompt(title, fields, { message } = {}) {
-  return new Promise(resolve => {
-    appModalTitle.textContent = title;
-    appModalConfirm.classList.remove('is-danger');
-    appModalConfirm.textContent = 'تأكيد';
-    if (message) { appModalMsg.textContent = message; appModalMsg.style.display = 'block'; }
-    appModalFields.innerHTML = fields.map(f =>
-      `<input type="${f.type || 'text'}" id="modalField_${f.id}" placeholder="${f.placeholder || ''}">`
-    ).join('');
-    appModal.classList.add('is-open');
-    appModalFields.querySelector('input')?.focus();
-
-    function cleanup(result) {
-      appModalConfirm.removeEventListener('click', onConfirm);
-      appModalCancel.removeEventListener('click', onCancel);
-      closeAppModal();
-      resolve(result);
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <script src="theme.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم المدرب — احمد زروال</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin-wrap { max-width: 960px; margin: 0 auto; padding: 6rem 1.5rem 4rem; }
+    .admin-box { background: var(--ink-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem; }
+    .admin-box h2 { margin-bottom: 1rem; font-size: 1.3rem; }
+    .admin-box form { display: grid; gap: .8rem; }
+    .admin-box input, .admin-box select, .admin-box textarea {
+      background: var(--ink); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: .7rem .9rem; color: var(--chalk); width: 100%;
     }
-    function onConfirm() {
-      const values = {};
-      let hasEmpty = false;
-      fields.forEach(f => {
-        const v = document.getElementById(`modalField_${f.id}`).value.trim();
-        if (!v) hasEmpty = true;
-        values[f.id] = v;
-      });
-      if (hasEmpty) return;
-      cleanup(values);
+    .admin-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      padding: .7rem 0; border-bottom: 1px solid var(--border); font-size: .92rem; }
+    .admin-row:last-child { border-bottom: none; }
+    .admin-row button { border: none; border-radius: var(--radius); padding: .4rem .9rem; font-size: .82rem; }
+    .admin-msg { font-size: .85rem; color: var(--chalk-dim); margin-top: .6rem; }
+    .admin-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    #loginBox { max-width: 400px; margin: 6rem auto 0; }
+    #dashboard { display: none; }
+    .booking-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .booking-table th { background: var(--mat); padding: .6rem; text-align: right; border-bottom: 2px solid var(--gold); }
+    .booking-table td { padding: .6rem; border-bottom: 1px solid var(--border); }
+    .booking-table tr:hover { background: rgba(192,138,52,0.05); }
+    .video-list { margin-top: .8rem; }
+    .video-list .admin-row { border-bottom: 1px solid var(--border); }
+
+    #appModal {
+      display: none; position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,.6); align-items: center; justify-content: center; padding: 1rem;
     }
-    function onCancel() { cleanup(null); }
-    appModalConfirm.addEventListener('click', onConfirm);
-    appModalCancel.addEventListener('click', onCancel);
-  });
-}
-
-function appConfirm(message, { danger = false, title = 'تأكيد' } = {}) {
-  return new Promise(resolve => {
-    appModalTitle.textContent = title;
-    appModalMsg.textContent = message;
-    appModalMsg.style.display = 'block';
-    appModalFields.innerHTML = '';
-    appModalConfirm.textContent = danger ? 'حذف' : 'تأكيد';
-    appModalConfirm.classList.toggle('is-danger', danger);
-    appModal.classList.add('is-open');
-
-    function cleanup(result) {
-      appModalConfirm.removeEventListener('click', onConfirm);
-      appModalCancel.removeEventListener('click', onCancel);
-      closeAppModal();
-      resolve(result);
+    #appModal.is-open { display: flex; }
+    .app-modal__box {
+      background: var(--ink-2); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.5rem; width: 100%; max-width: 420px;
     }
-    function onConfirm() { cleanup(true); }
-    function onCancel() { cleanup(false); }
-    appModalConfirm.addEventListener('click', onConfirm);
-    appModalCancel.addEventListener('click', onCancel);
-  });
-}
+    .app-modal__box h3 { margin-bottom: 1rem; font-size: 1.1rem; }
+    .app-modal__box input {
+      background: var(--ink); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: .7rem .9rem; color: var(--chalk); width: 100%; margin-bottom: .7rem;
+    }
+    .app-modal__msg { font-size: .85rem; color: var(--blood); margin-bottom: .5rem; display: none; }
+    .app-modal__actions { display: flex; gap: .6rem; justify-content: flex-end; }
+    .app-modal__actions button { border: none; border-radius: var(--radius); padding: .5rem 1.1rem; font-size: .88rem; cursor: pointer; }
+    #appModalCancel { background: transparent; border: 1px solid var(--border) !important; color: var(--chalk); }
+    #appModalConfirm { background: var(--tatami); color: #fff; }
+    #appModalConfirm.is-danger { background: var(--blood); }
 
-// إذا كتب المدرب "مجانية" (أو ما يشابهها) داخل حقل السعر، تصبح الدورة مجانية تلقائياً
-// حتى لو نسي تفعيل خانة "مجانية".
-function isFreeText(price) {
-  return /مجان|free/i.test(price || '');
-}
+    /* ===================== مقاييس الهاتف: لوحة التحكم ===================== */
+    @media (max-width: 700px) {
+      .admin-wrap { padding: 5.5rem 1rem 3rem; }
+      .admin-box { padding: 1.1rem; margin-bottom: 1.3rem; }
+      .admin-box h2 { font-size: 1.1rem; }
+      .admin-top { flex-wrap: wrap; gap: .7rem; margin-bottom: 1.4rem; }
+      .admin-top h2 { font-size: 1.05rem; }
 
-function escapeHtml(str) {
-  if (str === undefined || str === null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+      /* صفوف الأسعار (label + input) داخل النماذج: عمود عمودي بدل جنب بعض */
+      .admin-box form .admin-row { flex-direction: column; align-items: stretch; gap: .4rem; padding: .6rem 0; }
+      .admin-box form .admin-row label { flex: none; }
+      .admin-box form .admin-row input { max-width: 100% !important; }
 
-let toastTimer = null;
-function showToast(message, { error = false, duration = 3000 } = {}) {
-  const el = document.getElementById('appToast');
-  if (!el) { console.log(message); return; }
-  el.textContent = message;
-  el.classList.toggle('is-error', error);
-  el.classList.add('is-visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('is-visible'), duration);
-}
-
-function getYoutubeEmbedUrl(url) {
-  if (!url) return '';
-  if (url.includes('/embed/')) return url;
-  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
-  return match ? `https://www.youtube.com/embed/${match[1]}` : url;
-}
-
-const loginBox = document.getElementById('loginBox');
-const dashboard = document.getElementById('dashboard');
-const loginForm = document.getElementById('loginForm');
-const loginMsg = document.getElementById('loginMsg');
-const userEmailEl = document.getElementById('userEmail');
-const logoutBtn = document.getElementById('logoutBtn');
-
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  loginMsg.textContent = 'جارِ الدخول...';
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-    loginMsg.textContent = '';
-    loginForm.reset();
-  } catch (err) {
-    loginMsg.textContent = '❌ ' + (err.message || 'خطأ في الدخول');
-  }
-});
-logoutBtn.addEventListener('click', () => signOut(auth));
-
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    loginBox.style.display = 'none';
-    dashboard.style.display = 'block';
-    userEmailEl.textContent = user.email;
-    loadBookings();
-    loadIntro();
-    loadAddonPrices();
-    loadDiscountCodes();
-    loadCourses();
-    loadVideos();
-  } else {
-    loginBox.style.display = 'block';
-    dashboard.style.display = 'none';
-  }
-});
-
-/* ===== طلبات الحجز ===== */
-const GOAL_LABELS = { weightloss: 'نقص الوزن', muscle: 'بناء عضلي', general: 'الصحة العامة', other: 'هدف آخر' };
-const ADDON_LABELS = { session2: 'ترقية لجلستين أسبوعياً', medical: 'مرافقة طبية' };
-
-function bookingPackageText(b) {
-  return b.packageType === 'health' ? 'الأهداف الصحية' : 'الفنون القتالية';
-}
-function bookingDetailsText(b) {
-  if (b.packageType === 'health') {
-    const goal = b.goal === 'other' ? (b.goalOther || GOAL_LABELS.other) : (GOAL_LABELS[b.goal] || '—');
-    const addons = Object.keys(b.addons || {}).filter(k => b.addons[k]).map(k => ADDON_LABELS[k]);
-    return `الهدف: ${goal}${addons.length ? ' — إضافات: ' + addons.join('، ') : ''}${b.duration ? ' — ' + b.duration : ''}${b.discountCode ? ' — كود: ' + b.discountCode : ''}`;
-  }
-  return `${b.courseTitle || '—'}${b.discountCode ? ' — كود: ' + b.discountCode : ''}`;
-}
-function bookingTotalText(b) {
-  if (b.packageType === 'health') return b.totalPrice !== undefined ? `$${Number(b.totalPrice).toFixed(2)}` : (b.addonsTotal ? `$${b.addonsTotal}` : 'بدون إضافات');
-  return b.coursePrice || '—';
-}
-
-let bookingsCache = [];
-let bookingsShowAll = false;
-
-async function loadBookings() {
-  const container = document.getElementById('bookingsList');
-  try {
-    const snap = await getDocs(query(collection(db, 'bookings'), orderBy('createdAt', 'desc')));
-    bookingsCache = [];
-    snap.forEach(d => bookingsCache.push({ id: d.id, ...d.data() }));
-    bookingsShowAll = false;
-    renderBookings();
-  } catch (err) {
-    container.innerHTML = '<p style="color:var(--blood);">خطأ في تحميل الطلبات</p>';
-    console.error(err);
-  }
-}
-
-function renderBookings() {
-  const container = document.getElementById('bookingsList');
-  if (!bookingsCache.length) {
-    container.innerHTML = '<p style="color:var(--chalk-dim);">لا توجد طلبات حجز حتى الآن.</p>';
-    return;
-  }
-  const visible = bookingsShowAll ? bookingsCache : bookingsCache.slice(0, 3);
-  let html = `<div class="table-scroll"><table class="booking-table"><thead><tr><th>#</th><th>الاسم</th><th>واتساب</th><th>البريد</th><th>الباقة</th><th>التفاصيل</th><th>الإجمالي</th><th>التاريخ</th><th>الوقت</th><th></th></tr></thead><tbody>`;
-  visible.forEach((b, i) => {
-    html += `<tr><td>${i + 1}</td><td>${escapeHtml(b.fullName)}</td><td>${escapeHtml(b.whatsapp)}</td><td>${escapeHtml(b.email)}</td><td>${escapeHtml(bookingPackageText(b))}</td><td>${escapeHtml(bookingDetailsText(b))}</td><td>${escapeHtml(bookingTotalText(b))}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time || '—')}</td><td><button class="btn-del-booking" data-id="${b.id}" style="background:var(--blood);color:#fff;font-size:.75rem;">حذف</button></td></tr>`;
-  });
-  html += '</tbody></table></div>';
-  if (bookingsCache.length > 3) {
-    html += `<div style="text-align:center;margin-top:1rem;"><button id="toggleBookingsBtn" class="btn btn--ghost">${bookingsShowAll ? 'عرض أقل' : `عرض الجميع (${bookingsCache.length})`}</button></div>`;
-  }
-  container.innerHTML = html;
-
-  document.getElementById('toggleBookingsBtn')?.addEventListener('click', () => {
-    bookingsShowAll = !bookingsShowAll;
-    renderBookings();
-  });
-  container.querySelectorAll('.btn-del-booking').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const ok = await appConfirm('تأكيد حذف طلب الحجز هذا؟', { danger: true });
-      if (!ok) return;
-      await deleteDoc(doc(db, 'bookings', btn.dataset.id));
-      bookingsCache = bookingsCache.filter(b => b.id !== btn.dataset.id);
-      renderBookings();
-      showToast('✅ تم حذف الطلب');
-    });
-  });
-}
-
-/* ===== فيديو التعريف ===== */
-const introForm = document.getElementById('introForm');
-const introUrlInput = document.getElementById('introUrl');
-async function loadIntro() {
-  const snap = await getDoc(doc(db, 'settings', 'site'));
-  introUrlInput.value = snap.exists() ? (snap.data().introUrl || '') : '';
-}
-introForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const embedUrl = getYoutubeEmbedUrl(introUrlInput.value.trim());
-  await setDoc(doc(db, 'settings', 'site'), { introUrl: embedUrl }, { merge: true });
-  showToast('✅ تم حفظ فيديو التعريف');
-});
-
-/* ===== أسعار باقة الأهداف الصحية ===== */
-const addonPricesForm = document.getElementById('addonPricesForm');
-const priceHealthBase = document.getElementById('priceHealthBase');
-const priceSession2 = document.getElementById('priceSession2');
-const priceMedical = document.getElementById('priceMedical');
-
-async function loadAddonPrices() {
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'site'));
-    const data = snap.exists() ? snap.data() : {};
-    const d = data.addonPrices || {};
-    priceHealthBase.value = data.healthBasePrice ?? 30;
-    priceSession2.value = d.session2 ?? 40;
-    priceMedical.value = d.medical ?? 40;
-  } catch (err) { console.error(err); }
-}
-
-addonPricesForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const addonPrices = {
-    session2: Number(priceSession2.value) || 0,
-    medical: Number(priceMedical.value) || 0,
-  };
-  await setDoc(doc(db, 'settings', 'site'), {
-    addonPrices,
-    healthBasePrice: Number(priceHealthBase.value) || 0
-  }, { merge: true });
-  showToast('✅ تم حفظ الأسعار');
-});
-
-/* ===== أكواد الخصم ===== */
-const addDiscountForm = document.getElementById('addDiscountForm');
-const discountCodesList = document.getElementById('discountCodesList');
-let discountCodesCache = {};
-
-async function loadDiscountCodes() {
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'site'));
-    discountCodesCache = (snap.exists() && snap.data().discountCodes) || {};
-    renderDiscountCodes();
-  } catch (err) { console.error(err); }
-}
-function renderDiscountCodes() {
-  const codes = Object.keys(discountCodesCache);
-  if (!codes.length) {
-    discountCodesList.innerHTML = '<p style="color:var(--chalk-dim);font-size:.85rem;">لا توجد أكواد خصم بعد.</p>';
-    return;
-  }
-  discountCodesList.innerHTML = codes.map(code => `
-    <div class="admin-row">
-      <span>🏷️ <strong>${escapeHtml(code)}</strong> — خصم ${escapeHtml(String(discountCodesCache[code]))}%</span>
-      <button class="btn-del-discount" data-code="${escapeHtml(code)}" style="background:var(--blood);color:#fff;">حذف</button>
-    </div>`).join('');
-  discountCodesList.querySelectorAll('.btn-del-discount').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const ok = await appConfirm(`حذف كود الخصم "${btn.dataset.code}"؟`, { danger: true });
-      if (!ok) return;
-      delete discountCodesCache[btn.dataset.code];
-      await setDoc(doc(db, 'settings', 'site'), { discountCodes: discountCodesCache }, { merge: true });
-      renderDiscountCodes();
-      showToast('✅ تم حذف الكود');
-    });
-  });
-}
-addDiscountForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const code = document.getElementById('discountCode').value.trim().toUpperCase();
-  const percent = Math.min(100, Math.max(1, Number(document.getElementById('discountPercent').value) || 0));
-  if (!code || !percent) return;
-  discountCodesCache[code] = percent;
-  await setDoc(doc(db, 'settings', 'site'), { discountCodes: discountCodesCache }, { merge: true });
-  addDiscountForm.reset();
-  renderDiscountCodes();
-  showToast('✅ تم إضافة كود الخصم');
-});
-
-/* ===== الدورات (إضافة، تعديل بدون حذف، حذف) ===== */
-const addCourseForm = document.getElementById('addCourseForm');
-const coursesList = document.getElementById('coursesList');
-
-document.getElementById('coursePrice')?.addEventListener('input', (e) => {
-  if (isFreeText(e.target.value)) document.getElementById('courseFree').checked = true;
-});
-
-async function loadCourses() {
-  const snap = await getDocs(query(collection(db, 'courses'), orderBy('createdAt', 'desc')));
-  coursesList.innerHTML = '';
-  snap.forEach(d => {
-    const c = d.data();
-    const row = document.createElement('div');
-    row.className = 'admin-row';
-    row.innerHTML = `<span>${escapeHtml(c.image) || '📘'} ${escapeHtml(c.title)} — ${escapeHtml(c.price)} ${c.free ? '(مجانية)' : ''} ${c.incomplete ? '<span style="color:var(--gold-bright);">⏳ قيد الإكمال</span>' : ''}</span>
-      <div style="display:flex;gap:.5rem;align-items:center;">
-        <button class="btn-edit-course" data-id="${d.id}" style="background:var(--gold);color:#1A1305;">✏️ تعديل</button>
-        <button class="btn-add-video" data-courseid="${d.id}" style="background:var(--tatami);color:#fff;">➕ فيديو</button>
-        <button class="btn-delete-course" data-id="${d.id}" style="background:var(--blood);color:#fff;">حذف</button>
-      </div>`;
-    coursesList.appendChild(row);
-
-    // نموذج التعديل (مخفي حتى الضغط على "تعديل") — يعدّل المستند نفسه بدون حذف/إعادة إنشاء
-    const editForm = document.createElement('div');
-    editForm.className = 'course-edit-form';
-    editForm.style.display = 'none';
-    editForm.innerHTML = `
-      <input type="text" class="edit-title" placeholder="عنوان السلسلة" value="${escapeHtml(c.title || '')}">
-      <textarea class="edit-desc" rows="2" placeholder="الوصف">${escapeHtml(c.desc || '')}</textarea>
-      <input type="text" class="edit-price" placeholder="السعر" value="${escapeHtml(c.price || '')}">
-      <input type="text" class="edit-image" placeholder="إيموجي أو رابط صورة" value="${escapeHtml(c.image || '')}">
-      <input type="text" class="edit-discount" placeholder="نص خصم (اختياري)" value="${escapeHtml(c.discount || '')}">
-      <div class="admin-row-check">
-        <label><input type="checkbox" class="edit-free" ${c.free ? 'checked' : ''}> مجانية</label>
-        <label><input type="checkbox" class="edit-incomplete" ${c.incomplete ? 'checked' : ''}> قيد الإكمال</label>
-      </div>
-      <div class="course-edit-form__actions">
-        <button type="button" class="btn-save-course" style="background:var(--tatami);color:#fff;">💾 حفظ التعديلات</button>
-        <button type="button" class="btn-cancel-edit" style="background:transparent;border:1px solid var(--border);color:var(--chalk);">إلغاء</button>
-      </div>
-    `;
-    row.after(editForm);
-
-    editForm.querySelector('.edit-price').addEventListener('input', (e) => {
-      if (isFreeText(e.target.value)) editForm.querySelector('.edit-free').checked = true;
-    });
-
-    row.querySelector('.btn-edit-course').addEventListener('click', () => {
-      editForm.style.display = editForm.style.display === 'none' ? 'grid' : 'none';
-    });
-    editForm.querySelector('.btn-cancel-edit').addEventListener('click', () => {
-      editForm.style.display = 'none';
-    });
-    editForm.querySelector('.btn-save-course').addEventListener('click', async () => {
-      const priceVal = editForm.querySelector('.edit-price').value.trim();
-      const updated = {
-        title: editForm.querySelector('.edit-title').value.trim(),
-        desc: editForm.querySelector('.edit-desc').value.trim(),
-        price: priceVal,
-        image: editForm.querySelector('.edit-image').value.trim() || '📘',
-        discount: editForm.querySelector('.edit-discount').value.trim(),
-        free: editForm.querySelector('.edit-free').checked || isFreeText(priceVal),
-        incomplete: editForm.querySelector('.edit-incomplete').checked,
-      };
-      try {
-        await updateDoc(doc(db, 'courses', d.id), updated);
-        showToast('✅ تم حفظ التعديلات');
-        loadCourses();
-      } catch (err) {
-        console.error(err);
-        showToast('تعذر حفظ التعديلات', { error: true });
+      /* صف الدورة/الكود/الفيديو: العنوان فوق، الأزرار تحت وتاخذ العرض كامل بالتساوي */
+      #coursesList > .admin-row,
+      #discountCodesList .admin-row,
+      .video-list .admin-row {
+        flex-direction: column; align-items: stretch; gap: .6rem; padding: .8rem 0;
       }
-    });
-
-    // عرض فيديوهات الدورة
-    const videoContainer = document.createElement('div');
-    videoContainer.className = 'video-list';
-    videoContainer.id = `courseVideos_${d.id}`;
-    editForm.after(videoContainer);
-    loadCourseVideos(d.id, videoContainer);
-
-    row.querySelector('.btn-add-video').addEventListener('click', async () => {
-      const result = await appPrompt('إضافة فيديو للدورة', [
-        { id: 'title', placeholder: 'عنوان الفيديو' },
-        { id: 'url', placeholder: 'رابط الفيديو (يوتيوب أو mp4)', type: 'url' }
-      ]);
-      if (!result) return;
-      addCourseVideo(d.id, result.title, result.url);
-    });
-
-    row.querySelector('.btn-delete-course').addEventListener('click', async () => {
-      const ok = await appConfirm('تأكيد حذف الدورة؟ سيتم حذف جميع فيديوهاتها أيضاً.', { danger: true });
-      if (ok) {
-        await deleteDoc(doc(db, 'courses', d.id));
-        const q = query(collection(db, 'courseVideos'), where('courseId', '==', d.id));
-        const snapVid = await getDocs(q);
-        snapVid.forEach(v => deleteDoc(doc(db, 'courseVideos', v.id)));
-        loadCourses();
+      #coursesList > .admin-row > div,
+      .video-list .admin-row {
+        flex-wrap: wrap;
       }
-    });
-  });
-}
+      #coursesList > .admin-row > div { display: flex; gap: .5rem; width: 100%; }
+      #coursesList > .admin-row > div button { flex: 1 1 0; }
+      #discountCodesList .admin-row button,
+      .video-list .admin-row button { align-self: flex-start; }
+      .admin-row { font-size: .87rem; }
+      .admin-row button { padding: .45rem .8rem; }
 
-async function loadCourseVideos(courseId, container) {
-  try {
-    const q = query(collection(db, 'courseVideos'), where('courseId', '==', courseId));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      container.innerHTML = '<p style="color:var(--chalk-dim);font-size:.8rem;">لا توجد فيديوهات لهذه الدورة</p>';
-      return;
+      .course-edit-form__actions { flex-direction: column; }
+      .course-edit-form__actions button { width: 100%; }
+
+      .booking-table { font-size: .8rem; }
+      .booking-table th, .booking-table td { padding: .5rem .6rem; }
+
+      .app-modal__box { padding: 1.2rem; }
     }
-    let html = '<div style="margin-top:.5rem;">';
-    snap.forEach(d => {
-      const v = d.data();
-      html += `<div class="admin-row"><span>🎬 ${escapeHtml(v.title)}</span><button class="btn-del-course-video" data-id="${d.id}" style="background:var(--blood);color:#fff;font-size:.75rem;">حذف</button></div>`;
-    });
-    html += '</div>';
-    container.innerHTML = html;
-    container.querySelectorAll('.btn-del-course-video').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const ok = await appConfirm('حذف هذا الفيديو؟', { danger: true });
-        if (ok) {
-          await deleteDoc(doc(db, 'courseVideos', btn.dataset.id));
-          loadCourseVideos(courseId, container);
-        }
-      });
-    });
-  } catch (err) { console.error(err); }
-}
+  </style>
+</head>
+<body>
 
-async function addCourseVideo(courseId, title, url) {
-  const embed = getYoutubeEmbedUrl(url);
-  await addDoc(collection(db, 'courseVideos'), { courseId, title, embed, createdAt: serverTimestamp() });
-  const container = document.getElementById(`courseVideos_${courseId}`);
-  if (container) loadCourseVideos(courseId, container);
-}
+<header class="site-header is-scrolled">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <span class="brand__stripes"><span></span><span></span><span></span></span>
+      <span class="brand__text">
+        <span class="brand__name">احمد زروال</span>
+        <span class="brand__role">لوحة التحكم</span>
+      </span>
+    </a>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <a href="index.html" style="font-size:.9rem;color:var(--chalk-dim);">‹ رجوع للموقع</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="تبديل الوضع الليلي/النهاري"></button>
+    </div>
+  </div>
+</header>
 
-addCourseForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const title = document.getElementById('courseTitle').value.trim();
-  const desc = document.getElementById('courseDesc').value.trim();
-  const price = document.getElementById('coursePrice').value.trim();
-  const image = document.getElementById('courseImage').value.trim() || '📘';
-  const discount = document.getElementById('courseDiscount').value.trim();
-  const free = document.getElementById('courseFree').checked || isFreeText(price);
-  const incomplete = document.getElementById('courseIncomplete').checked;
-  await addDoc(collection(db, 'courses'), {
-    title, desc, price, image, discount, free, incomplete,
-    createdAt: serverTimestamp()
-  });
-  addCourseForm.reset();
-  loadCourses();
-  showToast('✅ تم إضافة الدورة');
-});
+<div class="admin-wrap">
 
-/* ===== الفيديوهات الترويجية ===== */
-const addVideoForm = document.getElementById('addVideoForm');
-const videosList = document.getElementById('videosList');
+  <div class="admin-box" id="loginBox">
+    <h2>تسجيل دخول المدرب</h2>
+    <form id="loginForm">
+      <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" required>
+      <input type="password" id="loginPassword" placeholder="كلمة السر" required>
+      <button type="submit" class="btn btn--primary">دخول</button>
+      <p class="admin-msg" id="loginMsg"></p>
+    </form>
+  </div>
 
-async function loadVideos() {
-  const snap = await getDocs(query(collection(db, 'videos'), orderBy('createdAt', 'desc')));
-  videosList.innerHTML = '';
-  snap.forEach(d => {
-    const v = d.data();
-    const row = document.createElement('div');
-    row.className = 'admin-row';
-    row.innerHTML = `<span>${escapeHtml(v.title)} — ${v.type === 'reels' ? 'ريلز' : 'فيديو طويل'}</span>`;
-    const delBtn = document.createElement('button');
-    delBtn.textContent = 'حذف';
-    delBtn.style.cssText = 'background:var(--blood);color:#fff;';
-    delBtn.addEventListener('click', async () => {
-      const ok = await appConfirm('تأكيد حذف الفيديو؟', { danger: true });
-      if (ok) {
-        await deleteDoc(doc(db, 'videos', d.id));
-        loadVideos();
-      }
-    });
-    row.appendChild(delBtn);
-    videosList.appendChild(row);
-  });
-}
+  <div id="dashboard">
+    <div class="admin-top">
+      <h2 style="margin:0;">أهلاً، <span id="userEmail"></span></h2>
+      <button class="btn btn--ghost" id="logoutBtn">تسجيل خروج</button>
+    </div>
 
-addVideoForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const title = document.getElementById('videoTitle').value.trim();
-  const url = document.getElementById('videoUrl').value.trim();
-  const type = document.getElementById('videoType').value;
-  const embed = getYoutubeEmbedUrl(url);
-  await addDoc(collection(db, 'videos'), { title, embed, type, createdAt: serverTimestamp() });
-  addVideoForm.reset();
-  loadVideos();
-  showToast('✅ تم إضافة الفيديو');
-});
+    <div class="admin-box">
+      <h2>📋 طلبات الحجز</h2>
+      <div id="bookingsList"><p style="color:var(--chalk-dim);">جار التحميل...</p></div>
+    </div>
+
+    <div class="admin-box">
+      <h2>🎥 فيديو تعريف المدرب</h2>
+      <form id="introForm">
+        <input type="url" id="introUrl" placeholder="رابط فيديو التعريف (يوتيوب Embed أو رابط mp4)">
+        <button type="submit" class="btn btn--primary">حفظ</button>
+      </form>
+    </div>
+
+    <!-- سعر باقة الأهداف الصحية + أسعار الإضافات -->
+    <div class="admin-box">
+      <h2>💰 أسعار باقة "الأهداف الصحية"</h2>
+      <form id="addonPricesForm">
+        <div class="admin-row" style="border-bottom:none;padding-bottom:0;">
+          <label style="flex:1;">السعر الأساسي للباقة ($ / 3 أشهر)</label>
+          <input type="number" id="priceHealthBase" min="0" step="1" style="max-width:120px;">
+        </div>
+        <p class="admin-msg" style="margin:0 0 .3rem;">ملاحظة: جلسة أسبوعية واحدة مع المدرب مُضمَّنة مجاناً ضمن الباقة الأساسية.</p>
+        <div class="admin-row" style="border-bottom:none;padding-bottom:0;">
+          <label style="flex:1;">الترقية لجلستين أسبوعياً ($)</label>
+          <input type="number" id="priceSession2" min="0" step="1" style="max-width:120px;">
+        </div>
+        <div class="admin-row" style="border-bottom:none;padding-bottom:0;">
+          <label style="flex:1;">متابعة طبية ($)</label>
+          <input type="number" id="priceMedical" min="0" step="1" style="max-width:120px;">
+        </div>
+        <button type="submit" class="btn btn--primary" style="margin-top:.6rem;">حفظ الأسعار</button>
+      </form>
+    </div>
+
+    <!-- أكواد الخصم -->
+    <div class="admin-box">
+      <h2>🏷️ أكواد الخصم</h2>
+      <form id="addDiscountForm">
+        <div class="form-grid-2">
+          <input type="text" id="discountCode" placeholder="الكود (مثال: WELCOME10)" required>
+          <input type="number" id="discountPercent" placeholder="نسبة الخصم %" min="1" max="100" required>
+        </div>
+        <button type="submit" class="btn btn--primary">إضافة الكود</button>
+      </form>
+      <div id="discountCodesList" style="margin-top:1rem;"></div>
+    </div>
+
+    <!-- إضافة دورة جديدة -->
+    <div class="admin-box">
+      <h2>📘 إضافة دورة جديدة</h2>
+      <form id="addCourseForm">
+        <input type="text" id="courseTitle" placeholder="عنوان السلسلة" required>
+        <textarea id="courseDesc" placeholder="وصف السلسة" rows="2"></textarea>
+        <input type="text" id="coursePrice" placeholder="السعر (مثلاً: 29$ أو مجاني)">
+        <input type="text" id="courseImage" placeholder="إيموجي أو رابط صورة (اختياري)">
+        <input type="text" id="courseDiscount" placeholder="نص خصم (اختياري، مثلاً: خصم 20%)">
+        <div class="admin-row-check">
+          <label><input type="checkbox" id="courseFree"> مجانية</label>
+          <label><input type="checkbox" id="courseIncomplete"> قيد الإكمال (لم تنته السلسلة بعد)</label>
+        </div>
+        <button type="submit" class="btn btn--primary">إضافة السلسة</button>
+      </form>
+    </div>
+
+    <div class="admin-box">
+      <h2>📚 الدورات الحالية</h2>
+      <p class="admin-msg" style="margin-top:0;">اضغط "تعديل" لتغيير سعر أو بيانات السلسلة دون حذفها وإعادة إنشائها.</p>
+      <div id="coursesList"></div>
+    </div>
+
+    <div class="admin-box">
+      <h2>🎬 إضافة فيديو ترويجي</h2>
+      <form id="addVideoForm">
+        <input type="text" id="videoTitle" placeholder="عنوان الفيديو" required>
+        <input type="url" id="videoUrl" placeholder="رابط الفيديو (يوتيوب Embed أو رابط mp4)" required>
+        <select id="videoType">
+          <option value="long">فيديو طويل</option>
+          <option value="reels">ريلز</option>
+        </select>
+        <button type="submit" class="btn btn--primary">إضافة الفيديو</button>
+      </form>
+    </div>
+
+    <div class="admin-box">
+      <h2>🎞️ الفيديوهات الترويجية الحالية</h2>
+      <div id="videosList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="appModal">
+  <div class="app-modal__box">
+    <h3 id="appModalTitle">عنوان</h3>
+    <p class="app-modal__msg" id="appModalMsg"></p>
+    <div id="appModalFields"></div>
+    <div class="app-modal__actions">
+      <button type="button" id="appModalCancel">إلغاء</button>
+      <button type="button" id="appModalConfirm">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast: يبدل window.alert() -->
+<div id="appToast"></div>
+
+<script type="module" src="admin.js"></script>
+</body>
+</html>
