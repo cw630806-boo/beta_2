@@ -195,11 +195,11 @@ function renderBookings() {
     return;
   }
   const visible = bookingsShowAll ? bookingsCache : bookingsCache.slice(0, 3);
-  let html = `<table class="booking-table"><thead><tr><th>#</th><th>الاسم</th><th>واتساب</th><th>البريد</th><th>الباقة</th><th>التفاصيل</th><th>الإجمالي</th><th>التاريخ</th><th>الوقت</th><th></th></tr></thead><tbody>`;
+  let html = `<div class="table-scroll"><table class="booking-table"><thead><tr><th>#</th><th>الاسم</th><th>واتساب</th><th>البريد</th><th>الباقة</th><th>التفاصيل</th><th>الإجمالي</th><th>التاريخ</th><th>الوقت</th><th></th></tr></thead><tbody>`;
   visible.forEach((b, i) => {
     html += `<tr><td>${i + 1}</td><td>${escapeHtml(b.fullName)}</td><td>${escapeHtml(b.whatsapp)}</td><td>${escapeHtml(b.email)}</td><td>${escapeHtml(bookingPackageText(b))}</td><td>${escapeHtml(bookingDetailsText(b))}</td><td>${escapeHtml(bookingTotalText(b))}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time || '—')}</td><td><button class="btn-del-booking" data-id="${b.id}" style="background:var(--blood);color:#fff;font-size:.75rem;">حذف</button></td></tr>`;
   });
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
   if (bookingsCache.length > 3) {
     html += `<div style="text-align:center;margin-top:1rem;"><button id="toggleBookingsBtn" class="btn btn--ghost">${bookingsShowAll ? 'عرض أقل' : `عرض الجميع (${bookingsCache.length})`}</button></div>`;
   }
