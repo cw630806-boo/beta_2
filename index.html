@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <script src="theme.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>احمد زروال — مدرب فنون قتالبة و مرافق</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#C08A34">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="particlesCanvas"></canvas>
+
+<header class="site-header" id="siteHeader">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <span class="brand__stripes"><span></span><span></span><span></span></span>
+      <span class="brand__text">
+        <span class="brand__name">احمد زروال</span>
+        <span class="brand__role" data-i18n="brand_role">مدرب فنون قتالية و مرافق</span>
+      </span>
+    </a>
+    <nav class="nav" id="siteNav">
+      <a href="#video-intro" class="nav-link" data-i18n="nav_intro">تعريف المدرب</a>
+      <a href="#features" class="nav-link" data-i18n="nav_features">المميزات</a>
+      <a href="#promo-videos" class="nav-link" data-i18n="nav_promo">فيديوهات مجانية</a>
+      <a href="#testimonials" class="nav-link" data-i18n="nav_testimonials">آراء الطلاب</a>
+      <div class="nav-cta">
+        <a href="#courses" class="btn btn--primary nav-link" data-i18n="nav_cta">استكشف الباقات</a>
+      </div>
+    </nav>
+    <button class="lang-toggle" id="langToggle" type="button" aria-label="Switch language">EN</button>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="تبديل الوضع الليلي/النهاري"></button>
+    <button class="nav-toggle" id="navToggle" aria-label="فتح القائمة" aria-expanded="false">
+      <svg id="iconMenu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <svg id="iconClose" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="display:none"><path d="M4 4l16 16M20 4L4 20"/></svg>
+    </button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero__inner">
+    <div class="hero__eyebrow"><span></span><span></span><span></span></div>
+    <h1 id="heroTitle">
+      <span data-i18n="hero_h1_line1">معك خطوة بخطوة لنصنع أفضل نسخة منك</span><br>
+      <span class="hero-typed-wrap"><span id="heroTyped" class="hero-typed"></span><span class="hero-typed-cursor">|</span></span>
+    </h1>
+    <p data-i18n="hero_p">دروس مفصّلة، برنامج تدريجي، متابعة شخصية، مدربين محترفين.</p>
+    <div class="hero__ctas">
+      <a href="#promo-videos" class="btn btn--primary" data-i18n="hero_cta1">شاهد فيديوهات مجانية</a>
+      <a href="#courses" class="btn btn--ghost" data-i18n="hero_cta2">تصفح الباقات</a>
+    </div>
+    <div class="scoreboard">
+      <div class="scoreboard__item"><div class="scoreboard__num" data-count-to="8" data-prefix="+">0</div><div class="scoreboard__label" data-i18n="score_years">سنة تدريب</div></div>
+      <div class="scoreboard__item"><div class="scoreboard__num" data-count-to="100" data-prefix="+">0</div><div class="scoreboard__label" data-i18n="score_students">طالب متدرّب</div></div>
+      <div class="scoreboard__item"><div class="scoreboard__num" data-count-to="40" data-prefix="+">0</div><div class="scoreboard__label" data-i18n="score_followers">ألف متابع عبر التواصل</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="video-intro">
+  <div class="wrap">
+    <div class="eyebrow-mark"><span></span><span></span></div>
+    <h2 data-i18n="intro_h2">تعريف المدرب</h2>
+    <div class="video-intro__wrapper">
+      <div class="video-intro__player" id="introPlayer"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--panel" id="features">
+  <div class="wrap">
+    <div class="heading-row">
+      <div>
+        <div class="eyebrow-mark"><span></span><span></span></div>
+        <h2 data-i18n="features_h2">لماذا هذا التطبيق؟</h2>
+        <p data-i18n="features_sub">مميزات مصمّمة خصيصاً لتوصلك لأهدافك بشكل منظم ومستدام.</p>
+      </div>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-card__icon">📋</div><h3 data-i18n="feat1_title">انضباط ذكي</h3><p data-i18n="feat1_desc">باقات مرنة مناسبة ليومك</p></div>
+      <div class="feature-card"><div class="feature-card__icon">🎯</div><h3 data-i18n="feat2_title">نتائج ملموسة</h3><p data-i18n="feat2_desc">اختبارات و اسئلة بعد كل دورة</p></div>
+      <div class="feature-card"><div class="feature-card__icon">🧠</div><h3 data-i18n="feat3_title">تعلم تفاعلي</h3><p data-i18n="feat3_desc">دروس فيديو تفاعلية.</p></div>
+      <div class="feature-card"><div class="feature-card__icon">💰</div><h3 data-i18n="feat5_title">أفضل الأسعار</h3><p data-i18n="feat5_desc">باقات مدروسة بأسعار تنافسية تناسب الجميع، مع عروض وأكواد خصم بين الحين والآخر.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="promo-videos">
+  <div class="wrap">
+    <div class="heading-row">
+      <div>
+        <div class="eyebrow-mark"><span></span><span></span></div>
+        <h2 data-i18n="promo_h2">فيديوهات مجانية</h2>
+        <p data-i18n="promo_sub">تعرف على أسلوب التدريب من خلال محتوى مجاني متنوع.</p>
+      </div>
+    </div>
+    <div class="promo-tabs">
+      <button class="promo-tab is-active" data-tab="long" data-i18n="promo_tab_long">فيديوهات طويلة</button>
+      <button class="promo-tab" data-tab="reels" data-i18n="promo_tab_reels">ريلز</button>
+    </div>
+    <div class="promo-grid" id="promoGrid"></div>
+  </div>
+</section>
+
+<section class="section section--panel" id="courses">
+  <div class="wrap">
+    <div class="heading-row">
+      <div>
+        <div class="eyebrow-mark"><span></span><span></span></div>
+        <h2 data-i18n="pkg_h2">الباقات التدريبية</h2>
+        <p data-i18n="pkg_sub">اختر الباقة المناسبة لهدفك، وابدأ رحلتك معنا خطوة بخطوة.</p>
+      </div>
+    </div>
+    <div class="packages-grid">
+      <div class="package-card">
+        <div class="package-card__icon">🥋</div>
+        <h3 data-i18n="pkg_martial_title">الفنون القتالية</h3>
+        <p data-i18n="pkg_martial_desc">دورات تدريجية في الغرابلينغ والفنون القتالية، خطوة بخطوة مع متابعة المدرب.</p>
+        <p class="package-card__price-note" data-i18n="pkg_martial_price_note">أسعار متعددة حسب السلسلة المختارة</p>
+        <div class="package-card__divider"></div>
+        <ul class="package-card__points">
+          <li><span class="check">✓</span><span data-i18n="pkg_martial_pt1">دورات مصورة حسب المستوى</span></li>
+          <li><span class="check">✓</span><span data-i18n="pkg_martial_pt2">تصحيح تقني مع المدرب / شروحات تفصيلية</span></li>
+          <li><span class="check">✓</span><span data-i18n="pkg_martial_pt4">أسئلة تفاعلية على شكل كويز بعد كل درس</span></li>
+          <li><span class="check">✓</span><span data-i18n="pkg_martial_pt5">إمكانية طرح الأسئلة على المدرب</span></li>
+        </ul>
+        <a href="Packages.html?type=martial" class="btn btn--primary btn--block" data-i18n="pkg_choose">اختر هذه الباقة</a>
+      </div>
+      <div class="package-card">
+        <div class="package-card__icon">🎯</div>
+        <h3 data-i18n="pkg_health_title">الأهداف الصحية</h3>
+        <p data-i18n="pkg_health_desc">برنامج مخصص للوصول إلى هدفك الرياضي.</p>
+        <div class="package-card__price">
+          <span class="amount">$<span id="healthPackagePrice">30</span></span>
+          <span class="unit" data-i18n="pkg_health_price_unit">/ لمدة 3 أشهر</span>
+        </div>
+        <div class="package-card__divider"></div>
+        <ul class="package-card__points">
+          <li><span class="check">✓</span><span data-i18n="pkg_health_pt1">نظام غذائي متكامل ومحسوب السعرات</span></li>
+          <li><span class="check">✓</span><span data-i18n="pkg_health_pt2">برامج تدريبية متنوعة</span></li>
+          <li><span class="check">✓</span><span data-i18n="pkg_health_pt3">دعم ومتابعة متواصلة</span></li>
+          <li><span class="check">✓</span><span data-i18n="pkg_health_pt4">جلسة أسبوعية واحدة مع المدرب — مجاناً ضمن الباقة</span></li>
+          <li><span class="check">✓</span><span data-i18n="pkg_health_pt5">إمكانية إضافة جلسات أو متابعة طبية إضافية</span></li>
+        </ul>
+        <a href="payment.html?type=health" class="btn btn--primary btn--block" data-i18n="pkg_choose">اختر هذه الباقة</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="testimonials">
+  <div class="wrap">
+    <div class="heading-row">
+      <div>
+        <div class="eyebrow-mark"><span></span><span></span></div>
+        <h2 data-i18n="testi_h2">آراء الطلاب</h2>
+      </div>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card"><p data-i18n="testi1_text">ex: بديت مع الكوتش احمد من الزيرو و اليوم راني في الحزامةالزرقا</p><div class="testi-card__author"><span class="testi-card__name">كريم</span><span class="testi-card__belt" data-i18n="testi1_belt">حزام أزرق</span></div></div>
+      <div class="testi-card"><p data-i18n="testi2_text">ex: الايكيب بارفي و الشرح تاع لفيديو يخليك تفهم و التبع حتى للتالي</p><div class="testi-card__author"><span class="testi-card__name">سيد احمد</span><span class="testi-card__belt" data-i18n="testi2_belt">بناء عضلي</span></div></div>
+      <div class="testi-card"><p data-i18n="testi3_text">الجلسات الخاصة بدلت المستوى تاعي قبل البطولة بشكل كبير.</p><div class="testi-card__author"><span class="testi-card__name">عمر</span><span class="testi-card__belt" data-i18n="testi3_belt">بطل في مسابقة </span></div></div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer__top">
+      <a href="index.html" class="brand">
+        <span class="brand__stripes"><span></span><span></span><span></span></span>
+        <span class="brand__text">
+          <span class="brand__name">احمد زروال</span>
+          <span class="brand__role" data-i18n="brand_role">مدرب فنون قتالية ومرافق</span>
+        </span>
+      </a>
+      <nav class="footer__nav">
+        <a href="#video-intro" data-i18n="nav_intro">تعريف المدرب</a>
+        <a href="#features" data-i18n="nav_features">المميزات</a>
+        <a href="#promo-videos" data-i18n="nav_promo">فيديوهات مجانية</a>
+        <a href="#courses" data-i18n="nav_packages">الباقات</a>
+      </nav>
+      <div class="footer__social">
+        <a href="https://www.facebook.com/ahmedzeroual45" target="_blank" rel="noopener" aria-label="فيسبوك">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        </a>
+        <a href="https://www.instagram.com/ahmedzeroual10/" target="_blank" rel="noopener" aria-label="انستغرام">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg>
+        </a>
+        <a href="https://www.youtube.com/@AhmedZeroual-o3q5n/videos" target="_blank" rel="noopener" aria-label="يوتيوب">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M23.5 6.2s-.23-1.64-.94-2.36c-.9-.94-1.9-.95-2.36-1C17.03 2.5 12 2.5 12 2.5h-.01s-5.03 0-8.2.34c-.46.05-1.46.06-2.36 1C.72 4.56.5 6.2.5 6.2S.26 8.13.26 10.06v1.87c0 1.93.24 3.86.24 3.86s.23 1.64.93 2.36c.9.95 2.08.92 2.6 1.02 1.9.18 8.07.34 8.07.34s5.04-.01 8.21-.35c.46-.05 1.46-.06 2.36-1 .7-.72.94-2.36.94-2.36s.24-1.93.24-3.86v-1.87c0-1.93-.24-3.86-.24-3.86zM9.75 14.85V7.65l6.5 3.6-6.5 3.6z"/></svg>
+        </a>
+      </div>
+    </div>
+    <div class="footer__bottom" data-i18n="footer_copy">© 2026 احمد زروال. جميع الحقوق محفوظة.</div>
+  </div>
+</footer>
+
+<div class="video-modal" id="videoModal">
+  <div class="video-modal__box">
+    <button class="video-modal__close" id="modalClose" aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4l16 16M20 4L4 20"/></svg></button>
+    <h3 id="modalTitle">عنوان الفيديو</h3>
+    <div class="video-modal__player" id="modalPlayer"></div>
+  </div>
+</div>
+
+<!-- Toast: يبدل window.alert() -->
+<div id="appToast"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

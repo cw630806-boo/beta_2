@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <script src="theme.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الباقات المتاحة — احمد زروال</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#C08A34">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="checkout-page">
+  <div class="wrap-narrow is-wide">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+      <a href="index.html" class="back-btn" style="margin-bottom:0;">← العودة إلى الصفحة الرئيسية</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="تبديل الوضع الليلي/النهاري"></button>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow-mark"><span></span><span></span></div>
+      <h1 id="pageTitle">الباقات المتاحة</h1>
+      <p id="pageSub">اختر السلسلة التي تناسب مستواك وابدأ رحلتك.</p>
+    </div>
+
+    <div id="coursesGrid" class="courses-grid">
+      <p style="color:var(--chalk-dim);grid-column:1/-1;text-align:center;">جار تحميل الباقات...</p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast: يبدل window.alert() -->
+<div id="appToast"></div>
+
+<script type="module">
+import { db } from './firebase-init.js';
+import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+function escapeHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let toastTimer = null;
+function showToast(message, { error = false, duration = 3000 } = {}) {
+  const el = document.getElementById('appToast');
+  if (!el) { console.log(message); return; }
+  el.textContent = message;
+  el.classList.toggle('is-error', error);
+  el.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('is-visible'), duration);
+}
+
+const params = new URLSearchParams(window.location.search);
+const type = params.get('type') === 'health' ? 'health' : 'martial';
+const grid = document.getElementById('coursesGrid');
+
+// حالياً هاذي الصفحة مخصصة لباقة "الفنون القتالية" (قائمة السلاسل/الدورات).
+// باقة "الأهداف الصحية" تروح مباشرة لصفحة الدفع لأن خياراتها تُختار هناك.
+if (type === 'health') {
+  window.location.replace('payment.html?type=health');
+} else {
+  loadCourses();
+}
+
+async function loadCourses() {
+  try {
+    const snap = await getDocs(query(collection(db, 'courses'), orderBy('createdAt', 'desc')));
+    const courses = [];
+    snap.forEach(d => courses.push({ id: d.id, ...d.data() }));
+
+    if (!courses.length) {
+      grid.innerHTML = `
+        <div class="checkout-empty" style="grid-column:1/-1;">
+          لا توجد سلسلات متاحة حالياً. <a href="index.html">العودة إلى الصفحة الرئيسية</a>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = courses.map(c => {
+      const isImageUrl = c.image && /^https?:\/\//i.test(c.image);
+      const imageHtml = isImageUrl
+        ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.title)}">`
+        : escapeHtml(c.image || '📘');
+      // كل الدورات (مجانية أو مدفوعة) تمر عبر payment.html لجمع بيانات الزبون.
+      // الفرق: الدورة المجانية لا تعرض قسم الدفع، وبعد التسجيل تدخل الزبون مباشرة للدورة.
+      const targetHref = `payment.html?type=martial&courseId=${encodeURIComponent(c.id)}`;
+      const incompleteBadge = c.incomplete
+        ? `<span class="incomplete-badge">⏳ قيد الإكمال</span>`
+        : '';
+      return `
+        <div class="course-card">
+          <div class="course-card__image">${incompleteBadge}${imageHtml}</div>
+          <div class="course-card__body">
+            <h3 class="course-card__title">${escapeHtml(c.title)}</h3>
+            <p class="course-card__desc">${escapeHtml(c.desc || '')}</p>
+            <div class="course-card__meta">
+              <span class="course-card__price ${c.free ? 'free' : ''}">
+                ${c.discount ? `<span class="discount-badge">${escapeHtml(c.discount)}</span>` : ''}
+                ${c.free ? 'مجانية' : escapeHtml(c.price || '')}
+              </span>
+            </div>
+            <a class="btn btn--primary btn--block" href="${targetHref}">${c.free ? 'ابدأ الآن مجاناً' : 'اختر هذه السلسلة'}</a>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    console.error(err);
+    grid.innerHTML = '<p style="color:var(--blood);grid-column:1/-1;text-align:center;">تعذر تحميل الباقات، حاول لاحقاً.</p>';
+    showToast('حدث خطأ أثناء تحميل الباقات', { error: true });
+  }
+}
+</script>
+
+</body>
+</html>

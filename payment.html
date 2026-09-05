@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <script src="theme.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إتمام الحجز — احمد زروال</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#C08A34">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="checkout-page">
+  <div class="wrap-narrow">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+      <a href="#" id="backLink" class="back-btn" style="margin-bottom:0;">← رجوع</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="تبديل الوضع الليلي/النهاري"></button>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow-mark"><span></span><span></span></div>
+      <h1 id="pageTitle">إتمام الحجز</h1>
+      <p id="pageSub"></p>
+      <div id="durationBadgeWrap"></div>
+    </div>
+
+    <div class="checkout-layout">
+      <div id="pageContent">
+        <p style="color:var(--chalk-dim);text-align:center;">جار التحميل...</p>
+      </div>
+      <aside class="checkout-aside" id="checkoutAside" style="display:none;"></aside>
+    </div>
+  </div>
+</div>
+
+<!-- Toast: يبدل window.alert() -->
+<div id="appToast"></div>
+
+<script type="module">
+import { db } from './firebase-init.js';
+import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+function escapeHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+let toastTimer = null;
+function showToast(message, { error = false, duration = 3000 } = {}) {
+  const el = document.getElementById('appToast');
+  if (!el) { console.log(message); return; }
+  el.textContent = message;
+  el.classList.toggle('is-error', error);
+  el.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('is-visible'), duration);
+}
+
+const GOAL_OPTIONS = [
+  ['weightloss', '🔥', 'نقص الوزن وحرق الدهون'],
+  ['muscle', '💪', 'بناء عضلي'],
+  ['general', '❤️', 'الصحة العامة'],
+  ['other', '✍️', 'أهداف أخرى'],
+];
+// ملاحظة: جلسة أسبوعية واحدة مع المدرب مُضمَّنة مجاناً ضمن باقة "الأهداف الصحية"
+// (تُعرض كملاحظة ثابتة أدنى القسم). الإضافات المدفوعة هنا هي فقط ترقية الجلسات
+// إلى جلستين أسبوعياً، أو إضافة متابعة طبية.
+const ADDON_DEFS = [
+  ['session2', 'الترقية لجلستين أسبوعياً مع المدرب', 'بدل الجلسة المجانية الواحدة، احصل على جلستين كل أسبوع'],
+  ['medical', 'مرافقة طبية', 'متابعة دورية لحالتك الصحية'],
+];
+const DURATION_LABEL = '3 أشهر';
+
+const params = new URLSearchParams(window.location.search);
+const type = params.get('type') === 'health' ? 'health' : 'martial';
+const courseId = params.get('courseId') || '';
+
+const pageTitle = document.getElementById('pageTitle');
+const pageSub = document.getElementById('pageSub');
+const durationBadgeWrap = document.getElementById('durationBadgeWrap');
+const pageContent = document.getElementById('pageContent');
+const checkoutAside = document.getElementById('checkoutAside');
+const backLink = document.getElementById('backLink');
+
+// حالة الطلب
+const state = {
+  goal: '', goalOther: '',
+  addons: { session2: false, medical: false },
+  addonPrices: { session2: 40, medical: 40 },
+  name: '', phone: '', email: '',
+  healthBasePrice: 30,
+  discountCode: '', discountPercent: 0, discountValid: null,
+};
+let discountCodes = {}; // { CODE: percent }
+let course = null;
+
+init();
+
+async function init() {
+  await loadDiscountCodes();
+  if (type === 'health') {
+    backLink.href = 'index.html';
+    backLink.textContent = '← العودة إلى الصفحة الرئيسية';
+    pageTitle.textContent = 'إتمام الحجز — الأهداف الصحية';
+    pageSub.textContent = 'حدد هدفك، اختر إضافاتك، وأكمل بياناتك.';
+    durationBadgeWrap.innerHTML = `<span class="duration-badge">⏳ مدة البرنامج: ${DURATION_LABEL}</span>`;
+    await loadAddonPrices();
+    renderHealthForm();
+  } else {
+    backLink.href = 'Packages.html?type=martial';
+    backLink.textContent = '← العودة إلى قائمة الباقات';
+    pageTitle.textContent = 'إتمام الحجز — الفنون القتالية';
+    pageSub.textContent = 'أكمل بياناتك للاشتراك فـ هذه السلسلة.';
+    if (!courseId) { renderMartialEmpty(); return; }
+    await loadCourse();
+    if (!course) { renderMartialEmpty(); return; }
+    renderMartialForm();
+  }
+}
+
+function renderMartialEmpty() {
+  pageContent.innerHTML = `
+    <div class="checkout-empty">
+      لم يتم العثور على هذه السلسلة، أو أنها لم تُختر بعد.
+      <br><a href="Packages.html?type=martial">عرض الباقات المتاحة</a>
+    </div>`;
+}
+
+async function loadCourse() {
+  try {
+    const snap = await getDoc(doc(db, 'courses', courseId));
+    if (snap.exists()) course = { id: snap.id, ...snap.data() };
+  } catch (err) { console.error(err); }
+}
+
+async function loadAddonPrices() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'site'));
+    if (snap.exists()) {
+      const d = snap.data();
+      if (d.addonPrices) state.addonPrices = { ...state.addonPrices, ...d.addonPrices };
+      if (d.healthBasePrice !== undefined) state.healthBasePrice = d.healthBasePrice;
+    }
+  } catch (err) { console.error(err); }
+}
+
+async function loadDiscountCodes() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'site'));
+    discountCodes = (snap.exists() && snap.data().discountCodes) || {};
+  } catch (err) { discountCodes = {}; }
+}
+
+/* ===================== قسم كود الخصم (مشترك) ===================== */
+function discountSectionHtml() {
+  return `
+    <div class="checkout-section">
+      <h3>🏷️ كود خصم</h3>
+      <p class="checkout-section__sub">إن كان لديك كود خصم، أدخله هنا وسيُطبّق تلقائياً على الإجمالي.</p>
+      <div class="discount-row">
+        <input type="text" id="discountInput" placeholder="أدخل كود الخصم">
+        <button type="button" class="btn btn--ghost" id="applyDiscountBtn">تطبيق</button>
+      </div>
+      <p class="discount-msg" id="discountMsg"></p>
+    </div>`;
+}
+function bindDiscountInput(onChange) {
+  const btn = document.getElementById('applyDiscountBtn');
+  const input = document.getElementById('discountInput');
+  const msg = document.getElementById('discountMsg');
+  btn.addEventListener('click', () => {
+    const code = input.value.trim().toUpperCase();
+    msg.classList.remove('is-error', 'is-success');
+    if (!code) { state.discountCode = ''; state.discountPercent = 0; msg.textContent = ''; onChange(); return; }
+    if (discountCodes[code]) {
+      state.discountCode = code;
+      state.discountPercent = Number(discountCodes[code]) || 0;
+      msg.textContent = `✅ تم تفعيل الخصم: ${state.discountPercent}%`;
+      msg.classList.add('is-success');
+    } else {
+      state.discountCode = ''; state.discountPercent = 0;
+      msg.textContent = '❌ كود الخصم غير صالح';
+      msg.classList.add('is-error');
+    }
+    onChange();
+  });
+}
+
+/* ===================== نموذج "الفنون القتالية" ===================== */
+function renderMartialForm() {
+  const isImageUrl = course.image && /^https?:\/\//i.test(course.image);
+  const imageHtml = isImageUrl
+    ? `<img src="${escapeHtml(course.image)}" alt="">`
+    : escapeHtml(course.image || '📘');
+  const isFree = course.free === true;
+
+  pageContent.innerHTML = `
+    <div class="selected-item-card">
+      <div class="selected-item-card__image">${imageHtml}</div>
+      <div>
+        <div class="selected-item-card__title">${escapeHtml(course.title)}</div>
+        <div class="selected-item-card__price">${isFree ? 'مجانية' : escapeHtml(course.price || '')}</div>
+      </div>
+    </div>
+    ${course.incomplete ? '<div class="incomplete-notice">⏳ هذه السلسلة قيد الإكمال من طرف المدرب، سيتم إضافة فيديوهات جديدة تباعاً.</div>' : ''}
+
+    ${contactSectionHtml()}
+    ${isFree ? '' : discountSectionHtml()}
+    ${isFree ? '' : paymentSectionHtml()}
+
+    <p class="wiz-error" id="formError">يرجى ملء جميع الحقول المطلوبة.</p>
+    <button class="btn btn--primary btn--block" id="submitBtn">${isFree ? 'دخول إلى السلسلة' : 'تأكيد الطلب'}</button>
+  `;
+  checkoutAside.style.display = 'block';
+  checkoutAside.innerHTML = `<div class="order-summary" id="orderSummary"></div>`;
+  updateMartialSummary();
+  bindContactInputs();
+  if (!isFree) bindDiscountInput(updateMartialSummary);
+  document.getElementById('submitBtn').addEventListener('click', submitMartial);
+}
+
+function martialPriceNumber() {
+  const m = String(course.price || '').match(/[\d.]+/);
+  return m ? Number(m[0]) : 0;
+}
+
+function updateMartialSummary() {
+  const el = document.getElementById('orderSummary');
+  if (!el) return;
+  const isFree = course.free === true;
+  let rows = `<div class="order-summary__row"><span>الباقة</span><span>${escapeHtml(course.title)}</span></div>`;
+  if (isFree) {
+    rows += `<div class="order-summary__total"><span>الإجمالي</span><span>مجانية</span></div>`;
+  } else {
+    const base = martialPriceNumber();
+    const discountAmount = base * (state.discountPercent / 100);
+    const total = Math.max(0, base - discountAmount);
+    rows += `<div class="order-summary__row"><span>طريقة الدفع</span><span>بطاقة ائتمان</span></div>`;
+    if (state.discountPercent > 0) {
+      rows += `<div class="order-summary__row is-discount"><span>خصم (${state.discountCode})</span><span>- ${discountAmount.toFixed(2)}$</span></div>`;
+    }
+    rows += `<div class="order-summary__total"><span>الإجمالي</span><span>${base ? total.toFixed(2) + '$' : escapeHtml(course.price || '—')}</span></div>`;
+  }
+  el.innerHTML = rows;
+}
+
+async function submitMartial() {
+  if (!validateContact()) return;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الإرسال...';
+  const isFree = course.free === true;
+  try {
+    await addDoc(collection(db, 'bookings'), {
+      fullName: state.name, whatsapp: state.phone, email: state.email,
+      packageType: 'martial',
+      courseId: course.id, courseTitle: course.title, coursePrice: isFree ? 'مجانية' : (course.price || ''),
+      discountCode: isFree ? '' : state.discountCode, discountPercent: isFree ? 0 : state.discountPercent,
+      date: new Date().toLocaleDateString('ar-DZ'),
+      time: new Date().toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }),
+      createdAt: serverTimestamp(),
+    });
+    if (isFree) {
+      window.location.href = `course.html?id=${encodeURIComponent(course.id)}`;
+    } else {
+      renderSuccess();
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('تعذر إرسال الطلب، حاول مرة أخرى', { error: true });
+    btn.disabled = false; btn.textContent = isFree ? 'دخول إلى السلسلة' : 'تأكيد الطلب';
+  }
+}
+
+/* ===================== نموذج "الأهداف الصحية" ===================== */
+function renderHealthForm() {
+  pageContent.innerHTML = `
+    <div class="checkout-section">
+      <h3>حدد هدفك</h3>
+      <p class="checkout-section__sub">اختر الهدف الأقرب لما تبحث عنه.</p>
+      <div class="wiz-options wiz-options--icons" id="goalOptions">
+        ${GOAL_OPTIONS.map(([val, emoji, label]) => `
+          <label class="wiz-option wiz-option--icon" data-goal="${val}">
+            <input type="radio" name="goal" value="${val}">
+            <span class="wiz-option__emoji">${emoji}</span>
+            <span class="wiz-option__label">${label}</span>
+          </label>`).join('')}
+      </div>
+      <div class="form-row" id="goalOtherRow" style="display:none;">
+        <input type="text" id="goalOtherInput" placeholder="اكتب هدفك بدقة...">
+      </div>
+    </div>
+
+    <div class="checkout-section">
+      <h3>إضافات اختيارية</h3>
+      <p class="checkout-section__sub">جلسة أسبوعية واحدة مع المدرب مُضمَّنة مجاناً ضمن الباقة. يمكنك إضافة أي من الميزات التالية (اختياري، وتُضاف للإجمالي).</p>
+      ${ADDON_DEFS.map(([key, title, desc]) => `
+        <label class="wiz-addon-row" data-addon="${key}">
+          <input type="checkbox" data-addon-input="${key}">
+          <span class="wiz-addon-row__body">
+            <span class="wiz-addon-row__title">${title}</span>
+            <span class="wiz-addon-row__desc">${desc}</span>
+          </span>
+          <span class="wiz-addon-row__price">$${state.addonPrices[key]}</span>
+        </label>`).join('')}
+    </div>
+
+    ${contactSectionHtml()}
+    ${discountSectionHtml()}
+    ${paymentSectionHtml()}
+
+    <p class="wiz-error" id="formError">يرجى ملء جميع الحقول المطلوبة (بما فيها الهدف).</p>
+    <button class="btn btn--primary btn--block" id="submitBtn">تأكيد الطلب</button>
+  `;
+  checkoutAside.style.display = 'block';
+  checkoutAside.innerHTML = `<div class="order-summary" id="orderSummary"></div>`;
+
+  pageContent.querySelectorAll('#goalOptions input[name="goal"]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      state.goal = inp.value;
+      pageContent.querySelectorAll('#goalOptions .wiz-option').forEach(l => l.classList.toggle('is-selected', l.dataset.goal === state.goal));
+      document.getElementById('goalOtherRow').style.display = state.goal === 'other' ? 'grid' : 'none';
+      updateHealthSummary();
+    });
+  });
+  document.getElementById('goalOtherInput')?.addEventListener('input', e => { state.goalOther = e.target.value.trim(); updateHealthSummary(); });
+
+  pageContent.querySelectorAll('[data-addon-input]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      state.addons[inp.dataset.addonInput] = inp.checked;
+      inp.closest('.wiz-addon-row').classList.toggle('is-selected', inp.checked);
+      updateHealthSummary();
+    });
+  });
+
+  bindContactInputs();
+  bindDiscountInput(updateHealthSummary);
+  updateHealthSummary();
+  document.getElementById('submitBtn').addEventListener('click', submitHealth);
+}
+
+function addonsTotal() {
+  return ADDON_DEFS.reduce((sum, [key]) => sum + (state.addons[key] ? state.addonPrices[key] : 0), 0);
+}
+function goalLabel() {
+  if (!state.goal) return '—';
+  if (state.goal === 'other') return state.goalOther || 'هدف آخر';
+  return (GOAL_OPTIONS.find(([v]) => v === state.goal) || [, , '—'])[2];
+}
+function selectedAddonsLabels() {
+  return ADDON_DEFS.filter(([key]) => state.addons[key]).map(([, title]) => title);
+}
+function healthSubtotal() {
+  return state.healthBasePrice + addonsTotal();
+}
+function updateHealthSummary() {
+  const el = document.getElementById('orderSummary');
+  if (!el) return;
+  const addons = selectedAddonsLabels();
+  const subtotal = healthSubtotal();
+  const discountAmount = subtotal * (state.discountPercent / 100);
+  const total = Math.max(0, subtotal - discountAmount);
+  let rows = `
+    <div class="order-summary__row"><span>الباقة</span><span>الأهداف الصحية ($${state.healthBasePrice})</span></div>
+    <div class="order-summary__row"><span>الهدف</span><span>${escapeHtml(goalLabel())}</span></div>
+    <div class="order-summary__row"><span>الإضافات</span><span>${addons.length ? escapeHtml(addons.join('، ')) : 'بدون'}</span></div>
+    <div class="order-summary__row"><span>مدة البرنامج</span><span>${DURATION_LABEL}</span></div>`;
+  if (state.discountPercent > 0) {
+    rows += `<div class="order-summary__row is-discount"><span>خصم (${state.discountCode})</span><span>- ${discountAmount.toFixed(2)}$</span></div>`;
+  }
+  rows += `<div class="order-summary__total"><span>الإجمالي</span><span>$${total.toFixed(2)}</span></div>`;
+  el.innerHTML = rows;
+}
+
+async function submitHealth() {
+  if (!state.goal) { document.getElementById('formError').classList.add('is-visible'); return; }
+  if (state.goal === 'other' && !state.goalOther) { document.getElementById('formError').classList.add('is-visible'); return; }
+  if (!validateContact()) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الإرسال...';
+  try {
+    await addDoc(collection(db, 'bookings'), {
+      fullName: state.name, whatsapp: state.phone, email: state.email,
+      packageType: 'health',
+      goal: state.goal, goalOther: state.goalOther,
+      addons: { ...state.addons }, addonsTotal: addonsTotal(),
+      basePrice: state.healthBasePrice,
+      discountCode: state.discountCode, discountPercent: state.discountPercent,
+      totalPrice: Math.max(0, healthSubtotal() - healthSubtotal() * (state.discountPercent / 100)),
+      duration: DURATION_LABEL,
+      date: new Date().toLocaleDateString('ar-DZ'),
+      time: new Date().toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }),
+      createdAt: serverTimestamp(),
+    });
+    renderSuccess();
+  } catch (err) {
+    console.error(err);
+    showToast('تعذر إرسال الطلب، حاول مرة أخرى', { error: true });
+    btn.disabled = false; btn.textContent = 'تأكيد الطلب';
+  }
+}
+
+/* ===================== أقسام مشتركة ===================== */
+function contactSectionHtml() {
+  return `
+    <div class="checkout-section">
+      <h3>بياناتك</h3>
+      <p class="checkout-section__sub">أدخل بياناتك للتواصل معك وإتمام التسجيل.</p>
+      <div class="form-row"><label>الاسم الكامل</label><input type="text" id="contactName"></div>
+      <div class="form-row"><label>رقم الهاتف / واتساب</label><input type="tel" id="contactPhone"></div>
+      <div class="form-row"><label>البريد الإلكتروني</label><input type="email" id="contactEmail"></div>
+    </div>`;
+}
+function bindContactInputs() {
+  document.getElementById('contactName').addEventListener('input', e => state.name = e.target.value.trim());
+  document.getElementById('contactPhone').addEventListener('input', e => state.phone = e.target.value.trim());
+  document.getElementById('contactEmail').addEventListener('input', e => state.email = e.target.value.trim());
+}
+function validateContact() {
+  const ok = state.name && state.phone && state.email;
+  document.getElementById('formError').classList.toggle('is-visible', !ok);
+  return ok;
+}
+function paymentSectionHtml() {
+  return `
+    <div class="checkout-section">
+      <h3>طريقة الدفع</h3>
+      <p class="checkout-section__sub">أكمل طلبك عبر طريقة الدفع التالية.</p>
+      <div class="wiz-payment">
+        <div class="wiz-payment-card"><span class="wiz-payment-card__icon">💳</span><span>بطاقة ائتمان</span></div>
+      </div>
+      <p class="wiz-payment-note">سيتم تفعيل الدفع الإلكتروني قريباً، حالياً سيتم التواصل معك لإتمام الدفع يدوياً.</p>
+    </div>`;
+}
+function renderSuccess() {
+  durationBadgeWrap.innerHTML = '';
+  checkoutAside.style.display = 'none';
+  pageContent.innerHTML = `
+    <div class="wiz-success">
+      <div class="wiz-success__icon">✅</div>
+      <h3>تم استلام طلبك بنجاح</h3>
+      <p>شكراً لك، سيتم التواصل معك قريباً لإتمام التسجيل والدفع.</p>
+      <div class="wiz-actions"><a class="btn btn--primary btn--block" href="index.html">العودة إلى الصفحة الرئيسية</a></div>
+    </div>`;
+}
+</script>
+
+</body>
+</html>
