@@ -519,21 +519,11 @@ body.lang-en .package-card__points { text-align: left; }
   .wiz-option--icon { padding: .9rem .6rem; }
 }
 
-/* لوحة التحكم: حشو أخف + جدول قابل للتمرير أفقياً بدل الانضغاط */
-@media (max-width: 700px) {
-  .admin-wrap { padding: 5rem 1rem 3rem; }
-  .admin-box { padding: 1.1rem; margin-bottom: 1.4rem; }
-  .admin-top { flex-wrap: wrap; gap: .8rem; }
-}
+/* لوحة التحكم: الحشو العام موجود فـ admin.html نفسها (خاص بالمقاييس)، هنا فقط الجدول */
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -1.1rem; padding: 0 1.1rem; }
 .table-scroll .booking-table { min-width: 720px; }
-@media (max-width: 700px) {
-  .booking-table { font-size: .82rem; }
-  .booking-table th, .booking-table td { padding: .5rem; }
-}
 
 /* النافذة المنبثقة (فيديو): تضييق الحشو على الهاتف */
 @media (max-width: 480px) {
   .video-modal__box { padding: 1.3rem; }
-  .app-modal__box { padding: 1.2rem; }
 }
