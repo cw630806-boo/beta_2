@@ -447,3 +447,93 @@ body.lang-en .package-card__points { text-align: left; }
 .course-edit-form .admin-row-check label { display: flex; align-items: center; gap: .4rem; }
 .course-edit-form__actions { display: flex; gap: .6rem; margin-top: .3rem; }
 .course-edit-form__actions button { border: none; border-radius: var(--radius); padding: .5rem 1.1rem; font-size: .85rem; }
+
+/* ============================================================
+   تحسينات مقاييس الهاتف (الحواف، الخطوط، البطاقات، الجداول)
+   ============================================================ */
+
+/* الهيدر: تقليص الحشو والمسافات على الشاشات الصغيرة */
+@media (max-width: 480px) {
+  .site-header { padding: .85rem 0; }
+  .site-header.is-scrolled { padding: .6rem 0; }
+  .site-header .wrap { gap: .6rem; }
+  .brand__name { font-size: 1rem; }
+  .brand__role { font-size: .66rem; }
+  .brand__stripes span { height: 17px; }
+  .lang-toggle { padding: .35rem .75rem; font-size: .74rem; margin-inline-start: .4rem; }
+  .theme-toggle { width: 34px; height: 34px; margin-inline-start: .4rem; }
+  .theme-toggle svg { width: 16px; height: 16px; }
+  .nav-toggle svg { width: 22px; height: 22px; }
+}
+
+/* الواجهة الرئيسية (Hero): مسافات وخطوط أنسب للشاشات الضيقة */
+@media (max-width: 480px) {
+  .hero { padding-top: 4.5rem; min-height: 92svh; }
+  .hero h1 { font-size: clamp(2rem, 8vw, 2.6rem); }
+  .hero p { font-size: 1rem; margin-top: 1.1rem; }
+  .hero__ctas { margin-top: 1.8rem; gap: .8rem; }
+  .hero__ctas .btn { flex: 1 1 auto; min-width: 140px; }
+  .scoreboard { gap: .6rem; margin-top: 2.4rem; }
+  .scoreboard__item { min-width: 0; flex: 1 1 calc(33.333% - .6rem); padding: .7rem .5rem; }
+  .scoreboard__num { font-size: 1.3rem; }
+  .scoreboard__label { font-size: .68rem; }
+}
+
+/* الأقسام العامة: تقليل الحشو الرأسي على الهاتف */
+@media (max-width: 600px) {
+  .section { padding: clamp(2.6rem, 10vw, 4rem) 0; }
+  .heading-row { margin-bottom: 2rem; gap: 1rem; }
+  .heading-row h2 { font-size: clamp(1.4rem, 6vw, 1.8rem); }
+}
+
+/* بطاقات الباقات: حشو أخف وأيقونة أصغر على الهاتف */
+@media (max-width: 480px) {
+  .package-card { padding: 1.9rem 1.3rem 1.7rem; }
+  .package-card__icon { width: 54px; height: 54px; font-size: 1.6rem; }
+  .package-card h3 { font-size: 1.15rem; }
+  .package-card__price .amount { font-size: 1.7rem; }
+}
+
+/* بطاقات المميزات وآراء الطلاب: حشو أخف */
+@media (max-width: 480px) {
+  .feature-card { padding: 1.4rem 1.1rem; }
+  .feature-card__icon { font-size: 2.1rem; }
+  .testi-card { padding: 1.4rem 1.2rem; }
+}
+
+/* الفوتر: توسيط أفضل على الهاتف */
+@media (max-width: 600px) {
+  .site-footer { padding: 2.6rem 0 1.6rem; }
+  .footer__top { flex-direction: column; align-items: center; text-align: center; gap: 1.6rem; }
+  .footer__nav { justify-content: center; gap: 1.1rem 1.4rem; }
+}
+
+/* صفحات الدفع/الباقات/تفاصيل الدورة: حشو أخف على الهاتف */
+@media (max-width: 480px) {
+  .checkout-page, .course-detail-page { padding: 1.2rem 1rem 3rem; }
+  .checkout-page .page-head h1 { font-size: 1.4rem; }
+  .selected-item-card { padding: 1rem; gap: .8rem; }
+  .selected-item-card__image { width: 52px; height: 52px; font-size: 1.5rem; }
+  .checkout-section h3 { font-size: 1rem; }
+  .order-summary { padding: .9rem 1rem; }
+  .wiz-option--icon { padding: .9rem .6rem; }
+}
+
+/* لوحة التحكم: حشو أخف + جدول قابل للتمرير أفقياً بدل الانضغاط */
+@media (max-width: 700px) {
+  .admin-wrap { padding: 5rem 1rem 3rem; }
+  .admin-box { padding: 1.1rem; margin-bottom: 1.4rem; }
+  .admin-top { flex-wrap: wrap; gap: .8rem; }
+}
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -1.1rem; padding: 0 1.1rem; }
+.table-scroll .booking-table { min-width: 720px; }
+@media (max-width: 700px) {
+  .booking-table { font-size: .82rem; }
+  .booking-table th, .booking-table td { padding: .5rem; }
+}
+
+/* النافذة المنبثقة (فيديو): تضييق الحشو على الهاتف */
+@media (max-width: 480px) {
+  .video-modal__box { padding: 1.3rem; }
+  .app-modal__box { padding: 1.2rem; }
+}
