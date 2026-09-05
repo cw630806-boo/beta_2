@@ -52,6 +52,45 @@
     #appModalCancel { background: transparent; border: 1px solid var(--border) !important; color: var(--chalk); }
     #appModalConfirm { background: var(--tatami); color: #fff; }
     #appModalConfirm.is-danger { background: var(--blood); }
+
+    /* ===================== مقاييس الهاتف: لوحة التحكم ===================== */
+    @media (max-width: 700px) {
+      .admin-wrap { padding: 5.5rem 1rem 3rem; }
+      .admin-box { padding: 1.1rem; margin-bottom: 1.3rem; }
+      .admin-box h2 { font-size: 1.1rem; }
+      .admin-top { flex-wrap: wrap; gap: .7rem; margin-bottom: 1.4rem; }
+      .admin-top h2 { font-size: 1.05rem; }
+
+      /* صفوف الأسعار (label + input) داخل النماذج: عمود عمودي بدل جنب بعض */
+      .admin-box form .admin-row { flex-direction: column; align-items: stretch; gap: .4rem; padding: .6rem 0; }
+      .admin-box form .admin-row label { flex: none; }
+      .admin-box form .admin-row input { max-width: 100% !important; }
+
+      /* صف الدورة/الكود/الفيديو: العنوان فوق، الأزرار تحت وتاخذ العرض كامل بالتساوي */
+      #coursesList > .admin-row,
+      #discountCodesList .admin-row,
+      .video-list .admin-row {
+        flex-direction: column; align-items: stretch; gap: .6rem; padding: .8rem 0;
+      }
+      #coursesList > .admin-row > div,
+      .video-list .admin-row {
+        flex-wrap: wrap;
+      }
+      #coursesList > .admin-row > div { display: flex; gap: .5rem; width: 100%; }
+      #coursesList > .admin-row > div button { flex: 1 1 0; }
+      #discountCodesList .admin-row button,
+      .video-list .admin-row button { align-self: flex-start; }
+      .admin-row { font-size: .87rem; }
+      .admin-row button { padding: .45rem .8rem; }
+
+      .course-edit-form__actions { flex-direction: column; }
+      .course-edit-form__actions button { width: 100%; }
+
+      .booking-table { font-size: .8rem; }
+      .booking-table th, .booking-table td { padding: .5rem .6rem; }
+
+      .app-modal__box { padding: 1.2rem; }
+    }
   </style>
 </head>
 <body>
